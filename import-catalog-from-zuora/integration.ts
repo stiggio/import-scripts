@@ -20,6 +20,9 @@ export async function findZuoraIntegration(environmentId: string) {
       environmentId: {
         eq: environmentId,
       },
+      vendorIdentifier: {
+        eq: "ZUORA",
+      },
     },
   };
 
