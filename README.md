@@ -28,7 +28,7 @@ This script imports product catalog data from Zuora into Stigg. It connects to t
 ## Requirements
 
 - Node.js
-- NPM
+- Yarn or NPM
 
 ## Env file Example
 
@@ -60,4 +60,8 @@ ZUORA_PRODUCT_ID=your-zuora-product-id-or-name
 yarn install
 yarn run zuora-import --dry-run
 
+or
+
+npm install
+npm run zuora-import --dry-run
 ```
