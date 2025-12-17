@@ -21,7 +21,26 @@ export type SearchProductsResponse = {
             displayName: string;
             description: string;
           };
-        },
+        }
+      ];
+    };
+  };
+  errors?: unknown;
+};
+
+export type SearchIntegrationsResponse = {
+  data: {
+    integrations: {
+      edges: [
+        {
+          node: {
+            environment: {
+              id: string;
+            };
+            integrationId: string;
+            id: string;
+          };
+        }
       ];
     };
   };
@@ -39,7 +58,7 @@ export type SearchPlansResponse = {
             displayName: string;
             description: string;
           };
-        },
+        }
       ];
     };
   };
@@ -73,7 +92,7 @@ export type ZuoraPlan = {
 export type ZuoraPrice = {
   id: string;
   amount: number;
-  billingPeriod: 'MONTHLY' | 'ANNUALLY';
+  billingPeriod: "MONTHLY" | "ANNUALLY";
   usage: boolean;
   chargeModel: string;
   discountPercent: number;
@@ -91,7 +110,11 @@ export type CreatePlanResponse = {
   errors?: unknown;
 };
 
-export type BillingModel = 'FLAT_FEE' | 'USAGE_BASED' | 'PER_UNIT' | 'MINIMUM_SPEND';
+export type BillingModel =
+  | "FLAT_FEE"
+  | "USAGE_BASED"
+  | "PER_UNIT"
+  | "MINIMUM_SPEND";
 
 export type PriceInput = {
   input: {
@@ -99,22 +122,22 @@ export type PriceInput = {
     packageId: string;
     priceGroupPackageBillingId: string;
     pricingModels: PriceModel[];
-    pricingType: 'CUSTOM' | 'FREE' | 'PAID';
+    pricingType: "CUSTOM" | "FREE" | "PAID";
   };
 };
 
 export type PriceModel = {
   billingId: string;
-  billingCadence: 'RECURRING' | 'ONE_OFF';
+  billingCadence: "RECURRING" | "ONE_OFF";
   billingModel: BillingModel;
   pricePeriods: [
     {
-      billingPeriod: 'MONTHLY' | 'ANNUALLY';
+      billingPeriod: "MONTHLY" | "ANNUALLY";
       price: {
         amount: number;
         currency: string;
       };
-    },
+    }
   ];
 };
 
@@ -137,10 +160,10 @@ export type CreatePlanInput = {
     description: string;
     displayName: string;
     environmentId: string;
-    pricingType: 'PAID' | 'FREE' | 'CUSTOM';
+    pricingType: "PAID" | "FREE" | "CUSTOM";
     productId: string;
     refId: string;
-    status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+    status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   };
 };
 

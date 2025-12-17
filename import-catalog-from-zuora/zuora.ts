@@ -1,9 +1,9 @@
-import type { BillingProductsResponse } from './types.js';
-import { sendGraphQLRequest } from './graphql.js';
+import type { BillingProductsResponse } from "./types.js";
+import { sendGraphQLRequest } from "./graphql.js";
 
-import { zuoraProductId } from './arguments.js';
+import { zuoraProductId } from "./arguments.js";
 
-export async function getProductFromZuora() {
+export async function getProductFromZuora(integrationId: string) {
   const query = `query BillingProducts($input: BillingProductsInput!) {
   billingProducts(input: $input) {
       products {
@@ -30,6 +30,7 @@ export async function getProductFromZuora() {
   const variables = {
     input: {
       productNameOrId: zuoraProductId,
+      integrationId: integrationId,
     },
   };
   const body = JSON.stringify({ query, variables });
