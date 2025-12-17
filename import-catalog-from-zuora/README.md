@@ -57,7 +57,7 @@ ZUORA_PRODUCT_ID=your-zuora-product-id-or-name
 ## Usage
 
 ```bash
-npm install
-cd import-catalog-from-zuora
-npx main.ts --dry-run
+yarn install
+yarn run zuora-import --dry-run
+
 ```
