@@ -5,7 +5,6 @@ import { fetchAllProductsFromZuora, splitToAddonAndPlans } from "./zuora.js";
 import { isDryRun, publishMode, updateMode } from "./arguments.js";
 import { fetchOrCreatePackage, publishPackage } from "./package.js";
 import { assignAddonsToPlans } from "./addon.js";
-import { publishPackageMutation } from "./graphql/mutations";
 import { Package } from "./types";
 
 async function main() {
