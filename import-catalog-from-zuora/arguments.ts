@@ -1,18 +1,17 @@
 import dotenv from "dotenv";
 import yargs from "yargs";
-import { hideBin } from "yargs/helpers";
 
 dotenv.config();
 
-const argv = yargs(hideBin(process.argv))
+const argv = yargs(process.argv.slice(2))
   .option("environmentId", {
     type: "string",
     describe: "Stigg Environment ID",
     demandOption: false,
   })
-  .option("zuoraProductId", {
+  .option("zuoraProductIds", {
     type: "string",
-    describe: "Zuora Product ID",
+    describe: "Zuora Product IDs",
     demandOption: false,
   })
   .option("dryRun", {
@@ -20,15 +19,31 @@ const argv = yargs(hideBin(process.argv))
     describe: "Dry Run Mode",
     demandOption: false,
   })
+  .option("publish", {
+    type: "boolean",
+    describe: "Publish Mode",
+    demandOption: false,
+  })
+  .option("update", {
+    type: "boolean",
+    describe: "Update Mode",
+    demandOption: false,
+  })
   .parseSync();
 
 const BASE_URL: string = process.env.BASE_URL || "https://api.stigg.io/graphql";
 const X_API_KEY = process.env.X_API_KEY || "";
 const environmentId = argv.environmentId || process.env.ENVIRONMENT_ID || "";
-const zuoraProductId =
-  argv.zuoraProductId || process.env.ZUORA_PRODUCT_ID || "";
+const zuoraProductIds =
+  argv.zuoraProductIds || process.env.ZUORA_PRODUCT_IDS || "";
 const isDryRun =
   argv.dryRun !== undefined ? argv.dryRun : process.env.DRY_RUN === "true";
+
+const publishMode =
+  argv.publish !== undefined ? argv.publish : process.env.PUBLISH === "true";
+
+const updateMode =
+  argv.update !== undefined ? argv.update : process.env.UPDATE === "true";
 
 if (!X_API_KEY) {
   throw new Error("X_API_KEY is not defined, please set it in .env file");
@@ -38,10 +53,18 @@ if (!environmentId) {
     "ENVIRONMENT_ID is not defined, please set it in .env file or pass as argument --environmentId"
   );
 }
-if (!zuoraProductId) {
+if (!zuoraProductIds) {
   throw new Error(
-    "ZUORA_PRODUCT_ID ID is not defined, please set it in .env file or pass as argument --zuoraProductId"
+    "ZUORA_PRODUCT_IDS is not defined, please set it in .env file or pass as argument --zuoraProductIds"
   );
 }
 
-export { BASE_URL, X_API_KEY, environmentId, zuoraProductId, isDryRun };
+export {
+  BASE_URL,
+  X_API_KEY,
+  environmentId,
+  zuoraProductIds,
+  isDryRun,
+  publishMode,
+  updateMode,
+};

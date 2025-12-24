@@ -1,39 +1,48 @@
-import type { BillingProductsResponse } from "./types.js";
-import { sendGraphQLRequest } from "./graphql.js";
+import type { ZuoraProduct } from "./types/integration.js";
+import { zuoraProductIds } from "./arguments.js";
+import { isAddon } from "./addon.js";
+import { queryBillingProducts } from "./graphql/queries.js";
 
-import { zuoraProductId } from "./arguments.js";
+export async function fetchAllProductsFromZuora(integrationId: string) {
+  const productIds = zuoraProductIds.split(",").map((id) => id.trim());
+  const products: ZuoraProduct[] = [];
+  [];
 
-export async function getProductFromZuora(integrationId: string) {
-  const query = `query BillingProducts($input: BillingProductsInput!) {
-  billingProducts(input: $input) {
-      products {
-        id
-        name
-        description
-        plans {
-          id
-          name
-          description
-          active
-          prices {
-            id
-            amount
-            billingPeriod
-            usage
-            chargeModel
-            discountPercent
-          }
-        }
-      }
+  for (const productId of productIds) {
+    const response = await queryBillingProducts(productId, integrationId);
+    if (response.data.billingProducts.products.length === 0) {
+      console.warn(`No product found in Zuora for ID: ${productId}`);
+      continue;
     }
-  }`;
-  const variables = {
-    input: {
-      productNameOrId: zuoraProductId,
-      integrationId: integrationId,
-    },
-  };
-  const body = JSON.stringify({ query, variables });
-  const response = await sendGraphQLRequest<BillingProductsResponse>(body);
-  return response;
+    products.push(...response.data.billingProducts.products);
+  }
+
+  return products;
+}
+
+export function splitToAddonAndPlans(zuoraProducts: ZuoraProduct[]) {
+  const addonProducts: ZuoraProduct[] = [];
+  const planProducts: ZuoraProduct[] = [];
+
+  for (const product of zuoraProducts) {
+    const addons = product.plans.filter((plan) => isAddon(plan.name));
+    if (addons.length > 0) {
+      const addonProduct: ZuoraProduct = {
+        ...product,
+        plans: addons,
+      };
+      addonProducts.push(addonProduct);
+    }
+
+    const regularPlans = product.plans.filter((plan) => !isAddon(plan.name));
+    if (regularPlans.length > 0) {
+      const planProduct: ZuoraProduct = {
+        ...product,
+        plans: regularPlans,
+      };
+      planProducts.push(planProduct);
+    }
+  }
+
+  return { addonProducts, planProducts };
 }

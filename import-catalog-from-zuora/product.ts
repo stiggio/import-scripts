@@ -1,63 +1,42 @@
-import type { CreateProductInput, SearchProductsResponse, ZuoraProduct, CreateProductResponse } from './types.js';
-import { sendGraphQLRequest } from './graphql.js';
+import type {
+  CreateProductInput,
+  SearchProductsResponse,
+  UpdateProductInput,
+  Product,
+} from "./types/product.js";
 
-import { environmentId, isDryRun } from './arguments.js';
+import { environmentId, isDryRun } from "./arguments.js";
+import {
+  createProductMutation,
+  updateProductMutation,
+} from "./graphql/mutations";
+import { ZuoraProduct } from "./types/integration.js";
+import { queryProduct } from "./graphql/queries.js";
 
-export function composeProductRefId(productName: string, zuoraProductId: string) {
-  return `${productName.trim().replace(/\s+/g, '_').toLowerCase()}_${zuoraProductId}`;
+export function composeProductRefId(
+  productName: string,
+  zuoraProductId: string
+) {
+  return `${productName
+    .replace(/ - /g, " ")
+    .trim()
+    .replace(/\s+/g, "_")
+    .toLowerCase()}_${zuoraProductId.slice(-6)}`;
 }
 
-export async function createProduct(variables: CreateProductInput) {
-  const query = `mutation CreateOneProduct($input: CreateOneProductInput!) {
-    createOneProduct(input: $input) {
-      id
-      refId
-      displayName
-      description
-    }
-  }`;
-
-  const body = JSON.stringify({ query, variables });
-  const response = await sendGraphQLRequest<CreateProductResponse>(body);
-  return response;
-}
-
-async function findProduct(refId: string) {
-  const query = `query Products($filter: ProductFilter) {
-  products(filter: $filter) {
-    edges {
-      node {
-        displayName
-        description
-        id
-        refId
-      }
-    }
-  }
-}`;
-  const variables = {
-    filter: {
-      refId: {
-        eq: refId,
-      },
-    },
-  };
-
-  const body = JSON.stringify({ query, variables });
-  const response = await sendGraphQLRequest<SearchProductsResponse>(body);
-  return response;
-}
-
-function getCreateProductInput(zuoraProduct: ZuoraProduct) {
-  const productRefId = composeProductRefId(zuoraProduct.name || 'unknown_product', zuoraProduct.id);
+export function getCreateProductInput(zuoraProduct: ZuoraProduct) {
+  const productRefId = composeProductRefId(
+    zuoraProduct.name || "unknown_product",
+    zuoraProduct.id
+  );
   const createProductInput = {
     input: {
       product: {
         additionalMetaData: {
-          from_zuora_import: 'true',
+          from_zuora_import: "true",
         },
-        description: zuoraProduct.description || '',
-        displayName: zuoraProduct.name || '',
+        description: zuoraProduct.description || "",
+        displayName: zuoraProduct.name || "",
         environmentId,
         refId: productRefId,
       },
@@ -68,38 +47,83 @@ function getCreateProductInput(zuoraProduct: ZuoraProduct) {
 
 export async function fetchOrCreateProduct(zuoraProduct: ZuoraProduct) {
   const createProductInput = getCreateProductInput(zuoraProduct);
-  const searchProductResponse: SearchProductsResponse = await findProduct(createProductInput.input.product.refId);
+  const searchProductResponse: SearchProductsResponse = await queryProduct(
+    createProductInput.input.product.refId
+  );
 
   const productExists = !!(
     searchProductResponse.data &&
     searchProductResponse.data.products.edges.length &&
-    searchProductResponse.data.products.edges[0].node.refId === createProductInput.input.product.refId
+    searchProductResponse.data.products.edges[0].node.refId ===
+      createProductInput.input.product.refId
   );
 
-  if (isDryRun) {
-    if (productExists) {
-      const existingProductId = searchProductResponse.data!.products.edges[0].node.id;
-      console.log(
-        `Dry run: product already exists in Stigg with ID: ${existingProductId}, would proceed to add plans.`,
-      );
-      return 'dry-run-existing-product-id';
-    }
-    console.log(`Dry run: would create PRODUCT with next input\n`, JSON.stringify(createProductInput, null, 2), '\n');
-    return 'dry-run-product-id';
-  }
-
   if (productExists) {
-    const existingProductId = searchProductResponse.data!.products.edges[0].node.id;
-    console.log(`Product already exists in Stigg with ID: ${existingProductId}, proceeding to add plans.`);
+    const existingProductId =
+      searchProductResponse.data!.products.edges[0].node.id;
+    console.log(
+      `${
+        isDryRun ? "[Dry Run]: " : ""
+      }Product already exists in Stigg with ID: ${existingProductId}`
+    );
+    await updateProductIfNeeded(searchProductResponse, createProductInput);
     return existingProductId;
   }
 
-  const createResponse: CreateProductResponse = await createProduct(createProductInput);
-  const productId = createResponse.data?.createOneProduct?.id;
-  if (productId) {
-    console.log(`Created product: ${createResponse.data?.createOneProduct?.displayName} with ID: ${productId}`);
-    return productId;
+  const createdProduct: Product = await createProductMutation(
+    createProductInput
+  );
+  return createdProduct.id;
+}
+
+export async function updateProductIfNeeded(
+  searchProductResponse: SearchProductsResponse,
+  productInput: CreateProductInput
+) {
+  const existingProduct = searchProductResponse.data!.products.edges[0].node;
+
+  const needsUpdate =
+    existingProduct.displayName !== productInput.input.product.displayName ||
+    existingProduct.description !== productInput.input.product.description;
+
+  if (!needsUpdate) {
+    console.log(
+      `No updates needed for product with Ref Id: ${existingProduct.refId}`
+    );
+    return;
   }
 
-  throw new Error(`Failed to create or find product in Stigg. Errors: ${JSON.stringify(createResponse.errors)}`);
+  if (isDryRun) {
+    console.log(
+      `Dry run: would update PRODUCT with next input\n`,
+      JSON.stringify(productInput, null, 2),
+      "\n"
+    );
+    return;
+  }
+
+  const updateProductInput: UpdateProductInput = {
+    input: {
+      id: existingProduct.id,
+      update: {
+        description: productInput.input.product.description,
+        displayName: productInput.input.product.displayName,
+        additionalMetaData: productInput.input.product.additionalMetaData,
+      },
+    },
+  };
+
+  const updateResponse = await updateProductMutation(updateProductInput);
+
+  if (updateResponse.errors) {
+    throw new Error(
+      `Failed to update product with ID: ${
+        existingProduct.id
+      }. Errors: ${JSON.stringify(updateResponse.errors)}`
+    );
+  }
+
+  console.log(
+    `Updated product: ${updateResponse.data?.updateOneProduct?.displayName} with ID: ${existingProduct.id}`
+  );
 }

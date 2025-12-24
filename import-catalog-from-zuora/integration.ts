@@ -1,32 +1,17 @@
-import { sendGraphQLRequest } from "./graphql";
-import { SearchIntegrationsResponse } from "./types";
+import { environmentId } from "./arguments.js";
+import { queryZuoraIntegration } from "./graphql/queries";
 
-export async function findZuoraIntegration(environmentId: string) {
-  const query = `query Integrations($filter: IntegrationFilter) {
-  integrations(filter: $filter) {
-    edges {
-      node {
-        environment {
-          id
-        }
-        integrationId
-        id
-      }
-    }
+export async function getIntegrationId() {
+  const integration = await queryZuoraIntegration(environmentId);
+  const integrationId = integration.data.integrations.edges[0].node.id;
+
+  if (integration.errors) {
+    throw new Error(
+      `Error fetching Zuora integration: ${JSON.stringify(integration.errors)}`
+    );
   }
-}`;
-  const variables = {
-    filter: {
-      environmentId: {
-        eq: environmentId,
-      },
-      vendorIdentifier: {
-        eq: "ZUORA",
-      },
-    },
-  };
-
-  const body = JSON.stringify({ query, variables });
-  const response = await sendGraphQLRequest<SearchIntegrationsResponse>(body);
-  return response;
+  if (!integrationId) {
+    throw new Error("No Zuora integration found for the given environment ID");
+  }
+  return integrationId;
 }

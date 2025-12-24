@@ -1,48 +1,72 @@
-import { findZuoraIntegration } from "./integration.js";
-import { fetchOrCreatePlan } from "./plan.js";
-import { createPricesForPlan } from "./price.js";
+import { getIntegrationId } from "./integration.js";
+import { createPrices } from "./price.js";
 import { fetchOrCreateProduct } from "./product.js";
-import type { BillingProductsResponse, ZuoraProduct } from "./types.js";
-import { getProductFromZuora } from "./zuora.js";
-
-import { environmentId } from "./arguments.js";
+import { fetchAllProductsFromZuora, splitToAddonAndPlans } from "./zuora.js";
+import { isDryRun, publishMode, updateMode } from "./arguments.js";
+import { fetchOrCreatePackage, publishPackage } from "./package.js";
+import { assignAddonsToPlans } from "./addon.js";
+import { publishPackageMutation } from "./graphql/mutations";
+import { Package } from "./types";
 
 async function main() {
-  const integration = await findZuoraIntegration(environmentId);
-  const integrationId = integration.data.integrations.edges[0].node.id;
-  if (integration.errors) {
-    throw new Error(
-      `Error fetching Zuora integration: ${JSON.stringify(integration.errors)}`
-    );
-  }
+  const integrationId = await getIntegrationId();
 
-  const billingProductsResponse: BillingProductsResponse =
-    await getProductFromZuora(integrationId);
-  if (billingProductsResponse.errors) {
-    throw new Error(
-      `Error fetching product from Zuora: ${JSON.stringify(
-        billingProductsResponse.errors
-      )}`
-    );
-  }
-  const zuoraProducts =
-    (billingProductsResponse.data?.billingProducts
-      ?.products as ZuoraProduct[]) || [];
+  const stiggPlans: Package[] = [];
+  const stiggAddons: Package[] = [];
+
+  const zuoraProducts = await fetchAllProductsFromZuora(integrationId);
   if (zuoraProducts.length === 0) {
-    console.log("No products found in Zuora for the given product ID.");
+    console.log("No Zuora products found to import.");
     return;
   }
-  for (const zuoraProduct of zuoraProducts) {
-    const productId = await fetchOrCreateProduct(zuoraProduct);
+  const { addonProducts, planProducts } = splitToAddonAndPlans(zuoraProducts);
+
+  const mainProductId = await fetchOrCreateProduct(zuoraProducts[0]);
+  console.log("");
+
+  for (const zuoraProduct of planProducts) {
     for (const zuoraPlan of zuoraProduct.plans || []) {
-      const planId = await fetchOrCreatePlan(zuoraPlan, productId);
-      await createPricesForPlan(zuoraPlan, planId);
+      const plan = await fetchOrCreatePackage(
+        "Plan",
+        zuoraPlan,
+        mainProductId,
+        zuoraProduct.id
+      );
+      await createPrices(zuoraPlan, plan);
+      stiggPlans.push(plan);
+      console.log("");
     }
+  }
+
+  for (const zuoraProduct of addonProducts) {
+    for (const zuoraAddon of zuoraProduct.plans || []) {
+      const addon = await fetchOrCreatePackage(
+        "Addon",
+        zuoraAddon,
+        mainProductId,
+        zuoraProduct.id
+      );
+      await createPrices(zuoraAddon, addon);
+      stiggAddons.push(addon);
+      console.log("");
+    }
+  }
+
+  if (publishMode && !isDryRun) {
+    await Promise.all(stiggAddons.map((addon) => publishPackage(addon)));
+    console.log("");
+    await assignAddonsToPlans(stiggPlans, stiggAddons);
+    console.log("");
+    await Promise.all(stiggPlans.map((plan) => publishPackage(plan)));
   }
 }
 
 (async () => {
   try {
+    console.log("publishMode:", publishMode ? "ENABLED" : "DISABLED");
+    console.log("updateMode:", updateMode ? "ENABLED" : "DISABLED");
+    console.log("");
+
     await main();
   } catch (error) {
     console.error("Error in main:", error);
