@@ -12,7 +12,9 @@
     "zuora-import:update:dry-run": "tsx ./import-catalog-from-zuora/main.ts --update --dry-run",
     "zuora-import:publish:dry-run": "tsx ./import-catalog-from-zuora/main.ts --publish --dry-run",
     "zuora-import:update:publish": "tsx ./import-catalog-from-zuora/main.ts --publish --update",
-    "zuora-import:publish:update": "tsx ./import-catalog-from-zuora/main.ts --publish --update"
+    "zuora-import:publish:update": "tsx ./import-catalog-from-zuora/main.ts --publish --update",
+    "zuora-import:update:publish:dry-run": "tsx ./import-catalog-from-zuora/main.ts --publish --update --dry-run",
+    "zuora-import:publish:update:dry-run": "tsx ./import-catalog-from-zuora/main.ts --publish --update --dry-run"
   },
   "keywords": [],
   "author": "",
