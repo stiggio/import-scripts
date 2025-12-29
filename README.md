@@ -116,11 +116,3 @@ yarn run zuora-import --update --publish --dry-run
 
 - **No changes are applied to Stigg**
 - All actions are **previewed in the console only**
-
----
-
-If you want, I can:
-
-- compress this further into a **Quick Start**,
-- add a **flag behavior table**,
-- or make it match your repo’s existing README style exactly.
