@@ -19,9 +19,15 @@ Imports product catalog data from **Zuora** into **Stigg** by converting Zuora p
 - All plans and add-ons from additional products are assigned to it
 - Rate plans are split into **plans** and **add-ons**
 - Only **flat-rate pricing** is supported
-- Entities are created as **draft** by default
+- Packages are created as **draft** by default
 
 ---
+
+---
+
+## Unarchiving Existing Products and Plans
+
+If a product or plan with the same `refId` already exists in the Stigg database and is archived, it will be automatically unarchived during import.
 
 ## Requirements
 
