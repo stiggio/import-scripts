@@ -24,6 +24,7 @@ export async function createProductMutation(
       description: variables.input.product.description,
       environmentId: variables.input.product.environmentId,
       refId: variables.input.product.refId,
+      status: "DRY_RUN",
     };
   }
   const query = `mutation CreateOneProduct($input: CreateOneProductInput!) {
@@ -54,4 +55,32 @@ export function updateProductMutation(productInput: UpdateProductInput) {
 
   const body = JSON.stringify({ query, variables: productInput });
   return sendGraphQLRequest<UpdateProductResponse>(body);
+}
+
+export async function unarchiveProductMutation(
+  productId: string,
+  environmentId: string
+) {
+  if (isDryRun) {
+    console.log(
+      `Dry run: would unarchive PRODUCT with ID: ${productId} in environment: ${environmentId}\n`
+    );
+    return;
+  }
+  const query = `mutation UnarchiveOneProduct($input: UnArchiveProductInput!) {
+  unarchiveOneProduct(input: $input) {
+    ${productFields}
+  }
+}`;
+
+  const variables = {
+    input: {
+      refId: productId,
+      environmentId: environmentId,
+    },
+  };
+
+  const body = JSON.stringify({ query, variables });
+  const response = await sendGraphQLRequest<Product>(body);
+  return response;
 }

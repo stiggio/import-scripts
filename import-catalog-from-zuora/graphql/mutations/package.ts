@@ -112,6 +112,14 @@ export async function updatePackageMutation<T extends PackageType>(
   type: T,
   variables: UpdatePackageInput
 ): Promise<Package> {
+  if (isDryRun) {
+    console.log(
+      `Dry run: would update PLAN with next input\n`,
+      JSON.stringify(variables, null, 2),
+      "\n"
+    );
+    return undefined;
+  }
   const query = `mutation UpdateOne${type}($input: ${type}UpdateInput!) {
     updateOne${type}(input: $input) {
       ${packageFields}
@@ -140,4 +148,59 @@ export async function updatePackageMutation<T extends PackageType>(
   }
   aPackage.type = type;
   return aPackage;
+}
+
+export async function unarchivePlanMutation(
+  planId: string,
+  environmentId: string
+) {
+  if (isDryRun) {
+    console.log(
+      `Dry run - skipping unarchivePlanMutation for PLAN ID: ${planId}`
+    );
+    return null;
+  }
+  const query = `mutation UnarchivePlan($input: UnArchivePlanInput!) {
+  unarchivePlan(input: $input) {
+    ${packageFields}
+  }
+}`;
+
+  const variables = {
+    input: {
+      id: planId,
+      environmentId: environmentId,
+    },
+  };
+
+  const body = JSON.stringify({ query, variables });
+  const response = await sendGraphQLRequest<Package>(body);
+  return response;
+}
+
+export async function unarchiveAddonMutation(
+  planId: string,
+  environmentId: string
+) {
+  if (isDryRun) {
+    console.log(
+      `Dry run - skipping unarchiveAddonMutation for ADDON ID: ${planId}`
+    );
+    return null;
+  }
+  const query = `mutation UnarchiveAddon($input: AddonUnArchiveInput!) {
+  unarchiveAddon(input: $input) {
+    ${packageFields}
+  }
+}`;
+
+  const variables = {
+    input: {
+      id: planId,
+      environmentId: environmentId,
+    },
+  };
+
+  const body = JSON.stringify({ query, variables });
+  return sendGraphQLRequest<Package>(body);
 }

@@ -3,6 +3,8 @@ import {
   createPackageDraftMutation,
   createPackageMutation,
   publishPackageMutation,
+  unarchiveAddonMutation,
+  unarchivePlanMutation,
   updatePackageMutation,
 } from "./graphql/mutations";
 import { queryPackage } from "./graphql/queries";
@@ -68,7 +70,13 @@ export async function fetchOrCreatePackage(
   );
 
   if (existingPackage) {
-    const existingPackageId = existingPackage.id;
+    if (existingPackage.status === "ARCHIVED") {
+      if (existingPackage.type == "Plan") {
+        await unarchivePlanMutation(existingPackage.refId, environmentId);
+      } else {
+        await unarchiveAddonMutation(existingPackage.refId, environmentId);
+      }
+    }
     console.log(
       `${
         isDryRun ? "[Dry Run]: " : ""
@@ -189,15 +197,6 @@ export async function updatePackageIfNeeded<T extends PackageType>(
 
   if (!needsUpdate) {
     console.log(`No updates needed for plan with Ref Id: ${aPackage.refId}`);
-    return undefined;
-  }
-
-  if (isDryRun) {
-    console.log(
-      `Dry run: would update PLAN with next input\n`,
-      JSON.stringify(planInput, null, 2),
-      "\n"
-    );
     return undefined;
   }
 

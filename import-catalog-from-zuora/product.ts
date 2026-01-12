@@ -8,6 +8,7 @@ import type {
 import { environmentId, isDryRun } from "./arguments.js";
 import {
   createProductMutation,
+  unarchiveProductMutation,
   updateProductMutation,
 } from "./graphql/mutations";
 import { ZuoraProduct } from "./types/integration.js";
@@ -51,14 +52,12 @@ export async function fetchOrCreateProduct(zuoraProduct: ZuoraProduct) {
     createProductInput.input.product.refId
   );
 
-  const productExists = !!(
-    searchProductResponse.data &&
-    searchProductResponse.data.products.edges.length &&
-    searchProductResponse.data.products.edges[0].node.refId ===
-      createProductInput.input.product.refId
-  );
+  const product = searchProductResponse.data?.products.edges[0]?.node;
 
-  if (productExists) {
+  if (product) {
+    if (product.status === "ARCHIVED") {
+      await unarchiveProductMutation(product.refId, environmentId);
+    }
     const existingProductId =
       searchProductResponse.data!.products.edges[0].node.id;
     console.log(
@@ -66,7 +65,7 @@ export async function fetchOrCreateProduct(zuoraProduct: ZuoraProduct) {
         isDryRun ? "[Dry Run]: " : ""
       }Product already exists in Stigg with ID: ${existingProductId}`
     );
-    await updateProductIfNeeded(searchProductResponse, createProductInput);
+    await updateProductIfNeeded(product, createProductInput);
     return existingProductId;
   }
 
@@ -77,11 +76,9 @@ export async function fetchOrCreateProduct(zuoraProduct: ZuoraProduct) {
 }
 
 export async function updateProductIfNeeded(
-  searchProductResponse: SearchProductsResponse,
+  existingProduct: Product,
   productInput: CreateProductInput
 ) {
-  const existingProduct = searchProductResponse.data!.products.edges[0].node;
-
   const needsUpdate =
     existingProduct.displayName !== productInput.input.product.displayName ||
     existingProduct.description !== productInput.input.product.description;

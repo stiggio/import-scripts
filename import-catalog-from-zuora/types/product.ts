@@ -8,6 +8,7 @@ export const productFields = `
   displayName
   environmentId
   refId
+  status
 `;
 
 export type Product = {
@@ -16,6 +17,7 @@ export type Product = {
   description: string;
   displayName: string;
   environmentId: string;
+  status: "PUBLISHED" | "ARCHIVED";
   refId: string;
 };
 
