@@ -24,7 +24,7 @@ export async function createProductMutation(
       description: variables.input.product.description,
       environmentId: variables.input.product.environmentId,
       refId: variables.input.product.refId,
-      status: "DRY_RUN",
+      status: "PUBLISHED",
     };
   }
   const query = `mutation CreateOneProduct($input: CreateOneProductInput!) {
