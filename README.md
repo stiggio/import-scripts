@@ -27,7 +27,7 @@ Imports product catalog data from **Zuora** into **Stigg** by converting Zuora p
 
 ## Unarchiving Existing Products and Plans
 
-If a product or plan with the same `refId` already exists in the Stigg database and is archived, it will be automatically unarchived during import.
+If a product or packages with the same `refId` already exists in the Stigg database and is archived, it will be automatically unarchived during import.
 
 ## Requirements
 
