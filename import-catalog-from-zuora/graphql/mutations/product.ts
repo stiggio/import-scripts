@@ -84,3 +84,27 @@ export async function unarchiveProductMutation(
   const response = await sendGraphQLRequest<Product>(body);
   return response;
 }
+
+export async function deleteProductMutation(productId: string) {
+  const query = `mutation DeleteOneProduct($input: DeleteOneProductInput!) {
+  deleteOneProduct(input: $input) {
+      id
+    }
+  }`;
+
+  const variables = {
+    input: {
+      id: productId,
+    },
+  };
+
+  const body = JSON.stringify({ query, variables });
+  const response = await sendGraphQLRequest<UpdateProductResponse>(body);
+  if (response.errors) {
+    throw new Error(
+      `Failed to delete product: ${JSON.stringify(response.errors)}`
+    );
+  }
+  console.log(`Deleted product with ID: ${productId}`);
+  return response;
+}

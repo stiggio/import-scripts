@@ -69,15 +69,39 @@ export async function createPackageDraftMutation<T extends PackageType>(
     );
   }
 
-  return (
-    response.data?.createPlanDraft ?? response.data?.createAddonDraft ?? null
-  );
+  const aPackage =
+    response.data?.createAddonDraft || response.data?.createPlanDraft || null;
+
+  if (!aPackage) {
+    throw new Error(`Failed to create draft for ${type} with ID: ${packageId}`);
+  }
+  if (aPackage.id) {
+    console.log(`Created draft for ${type} with ID: ${aPackage.refId}`);
+  }
+  return aPackage;
 }
 
 export async function createPackageMutation<T extends PackageType>(
   type: T,
   variables: CreatePackageInput
 ): Promise<Package> {
+  if (isDryRun) {
+    console.log(
+      `[Dry Run]: Would create ${type.toUpperCase()} with next input\n`,
+      JSON.stringify(variables, null, 2),
+      "\n"
+    );
+    return {
+      id: "dry-run-id-placeholder",
+      refId: variables.input.refId,
+      type: type,
+      productId: variables.input.productId,
+      description: variables.input.description,
+      displayName: variables.input.displayName,
+      prices: [],
+    };
+  }
+
   const query = `mutation CreateOne${type}($input: ${type}CreateInput!) {
     createOne${type}(input: $input) {
       ${packageFields}

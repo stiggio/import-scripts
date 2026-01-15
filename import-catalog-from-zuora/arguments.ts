@@ -24,6 +24,11 @@ const argv = yargs(process.argv.slice(2))
     describe: "Publish Mode",
     demandOption: false,
   })
+  .option("delete-existing", {
+    type: "boolean",
+    describe: "Delete Existing",
+    demandOption: false,
+  })
   .option("update", {
     type: "boolean",
     describe: "Update Mode",
@@ -44,6 +49,11 @@ const publishMode =
 
 const updateMode =
   argv.update !== undefined ? argv.update : process.env.UPDATE === "true";
+
+const deleteExisting =
+  argv.deleteExisting !== undefined
+    ? argv.deleteExisting
+    : process.env.DELETE_EXISTING === "true";
 
 if (!X_API_KEY) {
   throw new Error("X_API_KEY is not defined, please set it in .env file");
@@ -67,4 +77,5 @@ export {
   isDryRun,
   publishMode,
   updateMode,
+  deleteExisting,
 };

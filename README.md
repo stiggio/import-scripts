@@ -19,7 +19,7 @@ Imports product catalog data from **Zuora** into **Stigg** by converting Zuora p
 - All plans and add-ons from additional products are assigned to it
 - Rate plans are split into **plans** and **add-ons**
 - Only **flat-rate pricing** is supported
-- Packages are created as **draft** by default
+- Packages are grouped by Billing Period and created as **draft** by default
 
 ---
 
@@ -83,6 +83,18 @@ yarn run zuora-import --update
 
 - Creates **new entities** if they don’t exist
 - Updates **existing entities**
+- Does **not** publish
+
+---
+
+### Delete Existing mode (NOT RECOMMENDED FOR PRODUCTION)
+
+```bash
+yarn run zuora-import --delete-existing
+```
+
+- Deletes existing product before import by ref Id
+- Creates **new entities** if they don’t exist
 - Does **not** publish
 
 ---
