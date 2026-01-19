@@ -95,22 +95,6 @@ export async function fetchOrCreatePackage(
     return updatedPackage;
   }
 
-  if (isDryRun) {
-    console.log(
-      `[Dry Run]: Would create ${type.toUpperCase()} with next input\n`,
-      JSON.stringify(packageInput, null, 2),
-      "\n"
-    );
-    return {
-      id: "dry-run-id-placeholder",
-      refId: packageInput.input.refId,
-      type: type,
-      productId: productId,
-      description: packageInput.input.description,
-      displayName: packageInput.input.displayName,
-      prices: [],
-    };
-  }
   const createdPackage = await createPackageMutation(type, packageInput);
 
   const packageId = createdPackage.id;
@@ -122,6 +106,12 @@ export async function fetchOrCreatePackage(
       }`
     );
   }
+
+  console.log(
+    `${
+      isDryRun ? "[Dry Run]: " : ""
+    }Created new ${type} in Stigg with Ref Id: ${createdPackage.refId}`
+  );
   return createdPackage;
 }
 
@@ -146,12 +136,12 @@ function getCreatePackageInput(
       },
     };
   }
-  const refId = `${zuoraPlan.name
+  const nameWithoutBillingPeriod = removeBillingPeriodFromName(zuoraPlan.name);
+  const refId = `${nameWithoutBillingPeriod
     .trim()
     .replace(/ - /g, " ")
     .replace(/\s+/g, "_")
-    .replace(/[^a-zA-Z0-9_.\-]/g, "")
-    .toLowerCase()}_${zuoraPlan.id.slice(-6)}`;
+    .replace(/[^a-zA-Z0-9_.\-]/g, "")}`;
 
   const discountPercentage = getDiscountPercentage(zuoraPlan);
 
@@ -170,7 +160,7 @@ function getCreatePackageInput(
   return {
     input: {
       refId,
-      displayName: zuoraPlan.name,
+      displayName: nameWithoutBillingPeriod,
       description: zuoraPlan.description || "",
       productId,
       additionalMetaData,
@@ -180,6 +170,29 @@ function getCreatePackageInput(
       status: "DRAFT",
     },
   };
+}
+
+function removeBillingPeriodFromName(name: string): string {
+  const cleanedName = name
+    .replace(/(Monthly|Yearly|Annually|Annual)/i, "")
+    .trim();
+  return cleanedName.replace(/--/g, "-").replace(/-\s*-/g, "-");
+}
+
+export function groupZuoraPlansByName(
+  zuoraPlans: ZuoraPlan[]
+): Map<string, ZuoraPlan[]> {
+  const planMap = new Map<string, ZuoraPlan[]>();
+  zuoraPlans.forEach((plan) => {
+    const nameWithoutBillingPeriod = removeBillingPeriodFromName(plan.name);
+
+    const addedPlans = planMap.get(nameWithoutBillingPeriod) || [];
+    planMap.set(nameWithoutBillingPeriod, [...addedPlans, plan]);
+  });
+  console.log(
+    `Grouped ${zuoraPlans.length} Zuora plans into ${planMap.size} unique plan names.`
+  );
+  return planMap;
 }
 
 export async function updatePackageIfNeeded<T extends PackageType>(

@@ -37,11 +37,12 @@ function getPriceModel(
   }
 
   return {
-    billingId: zuoraPrice.id,
     billingCadence: "RECURRING",
     billingModel,
     pricePeriods: [
       {
+        priceGroupPackageBillingId: zuoraPlan.id,
+        billingId: zuoraPrice.id,
         billingPeriod,
         price: {
           amount: discountedAmount,
@@ -52,17 +53,18 @@ function getPriceModel(
   };
 }
 
-function getPriceInputV2(zuoraPlan: ZuoraPlan, stiggPlanId: string) {
+function getPriceInput(zuoraPlan: ZuoraPlan, stiggPlanId: string) {
   const priceModels = zuoraPlan.prices
     .map((price) => getPriceModel(price, zuoraPlan))
     .filter((pm) => pm !== null) as PriceModel[];
+
+  const groupedPriceModels = groupPriceModels(priceModels);
 
   const priceInput: PriceInput = {
     input: {
       environmentId,
       packageId: stiggPlanId!,
-      priceGroupPackageBillingId: zuoraPlan.id,
-      pricingModels: priceModels,
+      pricingModels: groupedPriceModels,
       pricingType: "PAID",
     },
   };
@@ -71,6 +73,12 @@ function getPriceInputV2(zuoraPlan: ZuoraPlan, stiggPlanId: string) {
 
 export function shouldSetNewPrice(priceInput: PriceInput, aPackage: Package) {
   const existingPrices: PackagePrice[] = aPackage.prices;
+  if (priceInput.input.pricingModels.length === 0) {
+    console.log(
+      `No valid price models to set for package Ref Id: ${aPackage.refId}, skipping price update.`
+    );
+    return false;
+  }
   if (!existingPrices || existingPrices.length === 0) {
     return true;
   }
@@ -78,7 +86,8 @@ export function shouldSetNewPrice(priceInput: PriceInput, aPackage: Package) {
     for (const billingModel of priceInputModel.pricePeriods) {
       const matchingExistingPrice = existingPrices.find(
         (existingPrice) =>
-          existingPrice.billingId === priceInputModel.billingId &&
+          existingPrice.billingId ===
+            priceInputModel.pricePeriods[0]?.billingId &&
           existingPrice.billingPeriod === billingModel.billingPeriod &&
           existingPrice.price.amount === billingModel.price.amount &&
           existingPrice.billingModel === priceInputModel.billingModel &&
@@ -95,32 +104,65 @@ export function shouldSetNewPrice(priceInput: PriceInput, aPackage: Package) {
   return false;
 }
 
-export async function createPrices(zuoraPlan: ZuoraPlan, aPackage: Package) {
-  const priceInput: PriceInput | null = getPriceInputV2(zuoraPlan, aPackage.id);
-  if (!priceInput || !shouldSetNewPrice(priceInput, aPackage)) {
+function groupPriceInputs(priceInputs: PriceInput[]): PriceInput {
+  if (priceInputs.length === 0) {
+    return null;
+  }
+  const priceModels = priceInputs.flatMap((pi) => pi.input.pricingModels);
+  const groupedModels = groupPriceModels(priceModels);
+  const groupedPriceInput: PriceInput = priceInputs[0];
+  groupedPriceInput.input.pricingModels = groupedModels;
+
+  return groupedPriceInput;
+}
+
+function groupPriceModels(priceModels: PriceModel[]): PriceModel[] {
+  const groupedModels: PriceModel[] = [];
+  for (const priceModel of priceModels) {
+    const index = groupedModels.findIndex(
+      (pm) =>
+        pm.billingModel === priceModel.billingModel &&
+        pm.billingCadence === priceModel.billingCadence
+    );
+    if (index !== -1) {
+      groupedModels[index].pricePeriods.push(...priceModel.pricePeriods);
+    } else {
+      groupedModels.push(priceModel);
+    }
+  }
+  return groupedModels;
+}
+
+export async function createPrices(zuoraPlans: ZuoraPlan[], aPackage: Package) {
+  const priceInputs = zuoraPlans
+    .map((zuoraPlan) => getPriceInput(zuoraPlan, aPackage.id))
+    .filter((pi) => pi !== null) as PriceInput[];
+
+  const groupedPriceInput = groupPriceInputs(priceInputs);
+
+  if (!shouldSetNewPrice(groupedPriceInput, aPackage)) {
     return;
   }
 
   if (isDryRun) {
     console.log(
       `[Dry Run]: would set PRICE with next input\n`,
-      JSON.stringify(priceInput, null, 2),
+      JSON.stringify(groupedPriceInput, null, 2),
       "\n"
     );
     return;
   }
 
-  if (aPackage.type == undefined) {
-    console.log(JSON.stringify(aPackage, null, 2));
-    return;
-  }
-
   let draftId = await getPackageDraftId(aPackage);
   aPackage.draftId = draftId;
-  priceInput.input.packageId = draftId!;
+  groupedPriceInput.input.packageId = draftId!;
 
-  const priceCreateResponse = await createPriceMutation(priceInput);
+  const priceCreateResponse = await createPriceMutation(groupedPriceInput);
   if (priceCreateResponse.errors) {
+    console.error(
+      "Failed to create price input:",
+      JSON.stringify(groupedPriceInput, null, 2)
+    );
     throw new Error(
       `Failed to create price in Stigg for the plan: ${
         aPackage.id

@@ -3,7 +3,11 @@ import { createPrices } from "./price.js";
 import { fetchOrCreateProduct } from "./product.js";
 import { fetchAllProductsFromZuora, splitToAddonAndPlans } from "./zuora.js";
 import { isDryRun, publishMode, updateMode } from "./arguments.js";
-import { fetchOrCreatePackage, publishPackage } from "./package.js";
+import {
+  fetchOrCreatePackage,
+  groupZuoraPlansByName,
+  publishPackage,
+} from "./package.js";
 import { assignAddonsToPlans } from "./addon.js";
 import { Package } from "./types";
 
@@ -14,6 +18,7 @@ async function main() {
   const stiggAddons: Package[] = [];
 
   const zuoraProducts = await fetchAllProductsFromZuora(integrationId);
+
   if (zuoraProducts.length === 0) {
     console.log("No Zuora products found to import.");
     return;
@@ -24,28 +29,43 @@ async function main() {
   console.log("");
 
   for (const zuoraProduct of planProducts) {
-    for (const zuoraPlan of zuoraProduct.plans || []) {
+    const zuoraPlanMap = groupZuoraPlansByName(zuoraProduct.plans || []);
+
+    const zuoraPlanNames = zuoraPlanMap.keys();
+    for (const planName of zuoraPlanNames) {
+      const zuoraPlans = zuoraPlanMap.get(planName);
+
+      const primaryZuoraPlan = zuoraPlans[0];
+
       const plan = await fetchOrCreatePackage(
         "Plan",
-        zuoraPlan,
+        primaryZuoraPlan,
         mainProductId,
         zuoraProduct.id
       );
-      await createPrices(zuoraPlan, plan);
+      await createPrices(zuoraPlans, plan);
       stiggPlans.push(plan);
       console.log("");
     }
   }
 
   for (const zuoraProduct of addonProducts) {
-    for (const zuoraAddon of zuoraProduct.plans || []) {
+    const zuoraAddonMap = groupZuoraPlansByName(zuoraProduct.plans || []);
+
+    const zuoraAddonNames = zuoraAddonMap.keys();
+
+    for (const addonName of zuoraAddonNames) {
+      const zuoraAddons = zuoraAddonMap.get(addonName);
+
+      const primaryZuoraAddon = zuoraAddons[0];
+
       const addon = await fetchOrCreatePackage(
         "Addon",
-        zuoraAddon,
+        primaryZuoraAddon,
         mainProductId,
         zuoraProduct.id
       );
-      await createPrices(zuoraAddon, addon);
+      await createPrices(zuoraAddons, addon);
       stiggAddons.push(addon);
       console.log("");
     }

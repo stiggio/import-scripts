@@ -8,18 +8,18 @@ export type PriceInput = {
   input: {
     environmentId: string;
     packageId: string;
-    priceGroupPackageBillingId: string;
     pricingModels: PriceModel[];
     pricingType: "CUSTOM" | "FREE" | "PAID";
   };
 };
 
 export type PriceModel = {
-  billingId: string;
   billingCadence: "RECURRING" | "ONE_OFF";
   billingModel: BillingModel;
   pricePeriods: [
     {
+      billingId: string;
+      priceGroupPackageBillingId: string;
       billingPeriod: "MONTHLY" | "ANNUALLY";
       price: {
         amount: number;
