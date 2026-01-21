@@ -24,7 +24,7 @@ export async function getPackageDraftId(aPackage: Package) {
   if (!aPackage.draftSummary) {
     const draftResponse = await createPackageDraftMutation(
       aPackage.type,
-      aPackage.id
+      aPackage.id,
     );
     return draftResponse.id;
   }
@@ -35,14 +35,14 @@ export async function getPackageDraftId(aPackage: Package) {
     aPackage.refId!,
     aPackage.productId,
     version,
-    false
+    false,
   );
 
   const packageId = draftPackage.id;
 
   if (!packageId) {
     throw new Error(
-      `No addon draft found for package with refId: ${aPackage.refId}`
+      `No addon draft found for package with refId: ${aPackage.refId}`,
     );
   }
   return packageId;
@@ -52,13 +52,13 @@ export async function fetchOrCreatePackage(
   type: PackageType,
   zuoraPlan: ZuoraPlan,
   productId: string,
-  zuoraProductId: string
+  zuoraProductId: string,
 ): Promise<Package> {
   const packageInput = getCreatePackageInput(
     type,
     zuoraPlan,
     productId,
-    zuoraProductId
+    zuoraProductId,
   );
 
   const existingPackage: Package = await queryPackage(
@@ -66,7 +66,7 @@ export async function fetchOrCreatePackage(
     packageInput.input.refId,
     productId,
     undefined,
-    true
+    true,
   );
 
   if (existingPackage) {
@@ -82,12 +82,12 @@ export async function fetchOrCreatePackage(
         isDryRun ? "[Dry Run]: " : ""
       }${type} already exists in Stigg with ID: ${
         existingPackage.refId
-      }, proceeding to add prices.`
+      }, proceeding to add prices.`,
     );
     const updatedPackage = await updatePackageIfNeeded(
       type,
       existingPackage,
-      packageInput
+      packageInput,
     );
     if (updatedPackage === undefined) {
       return existingPackage;
@@ -103,14 +103,14 @@ export async function fetchOrCreatePackage(
     throw new Error(
       `Failed to create or find ${type.toLowerCase()} in Stigg for Zuora ${type} ID: ${
         zuoraPlan.id
-      }`
+      }`,
     );
   }
 
   console.log(
     `${
       isDryRun ? "[Dry Run]: " : ""
-    }Created new ${type} in Stigg with Ref Id: ${createdPackage.refId}`
+    }Created new ${type} in Stigg with Ref Id: ${createdPackage.refId}`,
   );
   return createdPackage;
 }
@@ -119,7 +119,7 @@ function getCreatePackageInput(
   type: PackageType,
   zuoraPlan: ZuoraPlan,
   productId: string,
-  zuoraProductId: string
+  zuoraProductId: string,
 ): CreatePackageInput {
   if (isDryRun) {
     return {
@@ -147,7 +147,7 @@ function getCreatePackageInput(
 
   const isPaid =
     type === "Plan"
-      ? zuoraPlan.prices?.some((price) => (price.amount || 0) > 0) ?? false
+      ? (zuoraPlan.prices?.some((price) => (price.amount || 0) > 0) ?? false)
       : true;
 
   const additionalMetaData: Record<string, string> = {
@@ -173,14 +173,17 @@ function getCreatePackageInput(
 }
 
 function removeBillingPeriodFromName(name: string): string {
-  const cleanedName = name
+  let cleanedName = name
     .replace(/(Monthly|Yearly|Annually|Annual)/i, "")
     .trim();
-  return cleanedName.replace(/--/g, "-").replace(/-\s*-/g, "-");
+  while (cleanedName.endsWith("-") || cleanedName.endsWith(" ")) {
+    cleanedName = cleanedName.slice(0, -1).trim();
+  }
+  return cleanedName;
 }
 
 export function groupZuoraPlansByName(
-  zuoraPlans: ZuoraPlan[]
+  zuoraPlans: ZuoraPlan[],
 ): Map<string, ZuoraPlan[]> {
   const planMap = new Map<string, ZuoraPlan[]>();
   zuoraPlans.forEach((plan) => {
@@ -190,7 +193,7 @@ export function groupZuoraPlansByName(
     planMap.set(nameWithoutBillingPeriod, [...addedPlans, plan]);
   });
   console.log(
-    `Grouped ${zuoraPlans.length} Zuora plans into ${planMap.size} unique plan names.`
+    `Grouped ${zuoraPlans.length} Zuora plans into ${planMap.size} unique plan names.`,
   );
   return planMap;
 }
@@ -198,7 +201,7 @@ export function groupZuoraPlansByName(
 export async function updatePackageIfNeeded<T extends PackageType>(
   type: T,
   aPackage: Package,
-  planInput: CreatePackageInput
+  planInput: CreatePackageInput,
 ): Promise<Package | undefined> {
   if (!updateMode) {
     return undefined;
@@ -248,7 +251,7 @@ export async function publishPackage(aPackage: Package) {
       aPackage.refId!,
       aPackage.productId,
       aPackage.draftSummary.version,
-      false
+      false,
     );
     if (!draftPackage?.id) {
       console.log(`No draft found for package with refId: ${aPackage.refId}`);
@@ -257,6 +260,6 @@ export async function publishPackage(aPackage: Package) {
     publishPackageMutation(aPackage.type, draftPackage.id, aPackage.refId!);
   }
   console.log(
-    `${aPackage.type} with Ref Id: ${aPackage.refId} is already published.`
+    `${aPackage.type} with Ref Id: ${aPackage.refId} is already published.`,
   );
 }
