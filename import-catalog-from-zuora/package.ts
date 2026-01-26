@@ -145,7 +145,7 @@ function getCreatePackageInput(
 
   const discountPercentage = getDiscountPercentage(zuoraPlan);
 
-  const isPaid =
+  const hasPaidPrice =
     type === "Plan"
       ? (zuoraPlan.prices?.some((price) => (price.amount || 0) > 0) ?? false)
       : true;
@@ -166,7 +166,7 @@ function getCreatePackageInput(
       additionalMetaData,
       billingId: zuoraProductId,
       environmentId,
-      pricingType: isPaid ? "PAID" : "FREE",
+      pricingType: hasPaidPrice ? "PAID" : "CUSTOM",
       status: "DRAFT",
     },
   };

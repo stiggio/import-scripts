@@ -65,10 +65,21 @@ function getPriceInput(zuoraPlan: ZuoraPlan, stiggPlanId: string) {
       environmentId,
       packageId: stiggPlanId!,
       pricingModels: groupedPriceModels,
-      pricingType: "PAID",
+      pricingType: "PAID", // Will be determined in createPrices based on all grouped plans
     },
   };
   return priceInput;
+}
+
+function determinePricingType(priceInputs: PriceInput[]): "PAID" | "CUSTOM" {
+  const allPrices = priceInputs.flatMap((pi) =>
+    pi.input.pricingModels.flatMap((pm) =>
+      pm.pricePeriods.map((pp) => pp.price.amount)
+    )
+  );
+
+  const hasNonZeroPrice = allPrices.some((amount) => amount > 0);
+  return hasNonZeroPrice ? "PAID" : "CUSTOM";
 }
 
 export function shouldSetNewPrice(priceInput: PriceInput, aPackage: Package) {
@@ -112,6 +123,7 @@ function groupPriceInputs(priceInputs: PriceInput[]): PriceInput {
   const groupedModels = groupPriceModels(priceModels);
   const groupedPriceInput: PriceInput = priceInputs[0];
   groupedPriceInput.input.pricingModels = groupedModels;
+  groupedPriceInput.input.pricingType = determinePricingType(priceInputs);
 
   return groupedPriceInput;
 }
@@ -139,6 +151,13 @@ export async function createPrices(zuoraPlans: ZuoraPlan[], aPackage: Package) {
     .filter((pi) => pi !== null) as PriceInput[];
 
   const groupedPriceInput = groupPriceInputs(priceInputs);
+
+  if (groupedPriceInput?.input.pricingType === "CUSTOM") {
+    console.log(
+      `Skipping price creation for custom plan: ${aPackage.refId} (all prices are $0)`
+    );
+    return;
+  }
 
   if (!shouldSetNewPrice(groupedPriceInput, aPackage)) {
     return;
