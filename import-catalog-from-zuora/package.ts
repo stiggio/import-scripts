@@ -179,6 +179,7 @@ function removeBillingPeriodFromName(name: string): string {
   while (cleanedName.endsWith("-") || cleanedName.endsWith(" ")) {
     cleanedName = cleanedName.slice(0, -1).trim();
   }
+  cleanedName = cleanedName.replace(/-\s+-/, "-").replace(/_\s+_/, "_");
   return cleanedName;
 }
 
