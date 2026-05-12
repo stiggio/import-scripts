@@ -1,0 +1,2 @@
+export const GRANDFATHERED_KEY = "GRANDFATHERED";
+export const GRANDFATHERED_VALUE = "true";

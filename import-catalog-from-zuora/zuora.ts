@@ -10,11 +10,12 @@ export async function fetchAllProductsFromZuora(integrationId: string) {
 
   for (const productId of productIds) {
     const response = await queryBillingProducts(productId, integrationId);
-    if (response.data.billingProducts.products.length === 0) {
+    const zuoraProducts = response.data?.billingProducts?.products;
+    if (!zuoraProducts || zuoraProducts.length === 0) {
       console.warn(`No product found in Zuora for ID: ${productId}`);
       continue;
     }
-    products.push(...response.data.billingProducts.products);
+    products.push(...zuoraProducts);
   }
 
   return products;
@@ -25,7 +26,11 @@ export function splitToAddonAndPlans(zuoraProducts: ZuoraProduct[]) {
   const planProducts: ZuoraProduct[] = [];
 
   for (const product of zuoraProducts) {
-    const addons = product.plans.filter((plan) => isAddon(plan.name));
+    const addons = (product.plans || []).filter((plan) => isAddon(plan.name));
+    console.log(
+      "🚀 ~ splitToAddonAndPlans ~ addons:",
+      JSON.stringify(addons, null, 2),
+    );
     if (addons.length > 0) {
       const addonProduct: ZuoraProduct = {
         ...product,
@@ -34,7 +39,9 @@ export function splitToAddonAndPlans(zuoraProducts: ZuoraProduct[]) {
       addonProducts.push(addonProduct);
     }
 
-    const regularPlans = product.plans.filter((plan) => !isAddon(plan.name));
+    const regularPlans = (product.plans || []).filter(
+      (plan) => !isAddon(plan.name),
+    );
     if (regularPlans.length > 0) {
       const planProduct: ZuoraProduct = {
         ...product,

@@ -26,8 +26,14 @@ function getPriceModel(
 
   const { billingPeriod } = zuoraPrice;
   let billingModel: BillingModel;
-  if (zuoraPrice.chargeModel.toLowerCase() === "flat_fee") {
+  const chargeModel = zuoraPrice.chargeModel.toLowerCase();
+  if (chargeModel === "flat_fee") {
     billingModel = "FLAT_FEE";
+  } else if (chargeModel === "per_unit") {
+    billingModel = "FLAT_FEE";
+    console.log(
+      `Importing per_unit price for "${zuoraPlan.name}" as FLAT_FEE (amount: ${zuoraPrice.amount}).`
+    );
   } else {
     console.log(
       "Skipping price creation. Unsupported charge model:",

@@ -155,7 +155,8 @@ type GetPackageByRefIdResponse = {
 export async function queryPackageByRefId<T extends PackageType>(
   type: T,
   refId: string,
-  includeEntitlements = false
+  includeEntitlements = false,
+  envId?: string
 ): Promise<Package | null> {
   const queryName = type === "Plan" ? "getPlanByRefId" : "getAddonByRefId";
   const entitlements = includeEntitlements ? packageEntitlementFields : "";
@@ -168,7 +169,10 @@ export async function queryPackageByRefId<T extends PackageType>(
   }`;
 
   const variables = {
-    input: { refId },
+    input: {
+      refId,
+      ...(envId ? { environmentId: envId } : {}),
+    },
   };
 
   const body = JSON.stringify({ query, variables });

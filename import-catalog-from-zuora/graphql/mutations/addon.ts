@@ -11,9 +11,10 @@ export function addAddonsToPlanMutation(plan: Package, addons: Package[]) {
     __typename
   }
 }`;
+  const planId = plan.draftId || plan.id;
   const variables = {
     input: {
-      id: plan.id,
+      id: planId,
       relationIds: addons.map((addon) => addon.id),
     },
   };

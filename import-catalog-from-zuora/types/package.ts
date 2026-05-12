@@ -31,16 +31,24 @@ export const packageEntitlementFields = `
               featureType
             }
             hasUnlimitedUsage
+            hasSoftLimit
             usageLimit
             resetPeriod
+            isGranted
+            order
+            behavior
+            description
+            displayNameOverride
           }
           ... on PackageCreditEntitlement {
-            feature {
-              refId
-            }
             amount
             cadence
             customCurrencyId
+            isGranted
+            order
+            behavior
+            description
+            displayNameOverride
           }
         }`;
 
@@ -56,20 +64,26 @@ export type PackagePrice = {
   };
 };
 
-export type PackageFeatureEntitlement = {
+export type PackageEntitlementBase = {
+  isGranted?: boolean;
+  order?: number;
+  behavior?: string;
+  description?: string;
+  displayNameOverride?: string;
+};
+
+export type PackageFeatureEntitlement = PackageEntitlementBase & {
   feature: {
     refId: string;
     featureType: string;
   };
   hasUnlimitedUsage: boolean;
+  hasSoftLimit?: boolean;
   usageLimit: number | null;
   resetPeriod: string | null;
 };
 
-export type PackageCreditEntitlement = {
-  feature: {
-    refId: string;
-  };
+export type PackageCreditEntitlement = PackageEntitlementBase & {
   amount: number;
   cadence: string | null;
   customCurrencyId: string | null;

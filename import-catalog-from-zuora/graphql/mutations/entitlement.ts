@@ -22,6 +22,7 @@ export async function createPackageEntitlementsMutation(
   type: PackageType,
   packageId: string,
   entitlements: PackageEntitlement[],
+  envId: string,
 ): Promise<void> {
   if (isDryRun) {
     console.log(
@@ -40,21 +41,37 @@ export async function createPackageEntitlementsMutation(
 
   const entitlementInputs: Record<string, unknown>[] = [];
 
-  for (const e of featureEntitlements) {
+  for (let i = 0; i < featureEntitlements.length; i++) {
+    const e = featureEntitlements[i];
     entitlementInputs.push({
-      featureId: e.feature.refId,
-      hasUnlimitedUsage: e.hasUnlimitedUsage,
-      usageLimit: e.usageLimit,
-      resetPeriod: e.resetPeriod,
+      feature: {
+        featureId: e.feature.refId,
+        hasUnlimitedUsage: e.hasUnlimitedUsage,
+        hasSoftLimit: e.hasSoftLimit,
+        usageLimit: e.usageLimit,
+        resetPeriod: e.resetPeriod,
+        isGranted: e.isGranted ?? true,
+        order: e.order ?? i + 1,
+        behavior: e.behavior,
+        description: e.description,
+        displayNameOverride: e.displayNameOverride,
+      },
     });
   }
 
-  for (const e of creditEntitlements) {
+  for (let i = 0; i < creditEntitlements.length; i++) {
+    const e = creditEntitlements[i];
     entitlementInputs.push({
-      featureId: e.feature.refId,
-      amount: e.amount,
-      cadence: e.cadence,
-      customCurrencyId: e.customCurrencyId,
+      credit: {
+        customCurrencyId: e.customCurrencyId!,
+        amount: e.amount,
+        cadence: e.cadence!,
+        isGranted: e.isGranted ?? true,
+        order: e.order ?? featureEntitlements.length + i + 1,
+        behavior: e.behavior,
+        description: e.description,
+        displayNameOverride: e.displayNameOverride,
+      },
     });
   }
 
@@ -64,7 +81,7 @@ export async function createPackageEntitlementsMutation(
         feature { refId }
       }
       ... on PackageCreditEntitlement {
-        feature { refId }
+        amount
       }
     }
   }`;
@@ -72,12 +89,19 @@ export async function createPackageEntitlementsMutation(
   const variables = {
     input: {
       packageId,
+      environmentId: envId,
       entitlements: entitlementInputs,
     },
   };
 
+  console.log(
+    `Creating entitlements input:`,
+    JSON.stringify(variables, null, 2)
+  );
+
   const body = JSON.stringify({ query, variables });
-  const response = await sendGraphQLRequest<{ errors?: unknown }>(body);
+  const response = await sendGraphQLRequest<{ data?: unknown; errors?: unknown }>(body);
+  console.log(`CreatePackageEntitlements response:`, JSON.stringify(response, null, 2));
 
   if (response.errors) {
     throw new Error(

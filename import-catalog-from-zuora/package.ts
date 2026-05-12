@@ -1,4 +1,5 @@
 import { isDryRun, environmentId, updateMode } from "./arguments";
+import { GRANDFATHERED_KEY, GRANDFATHERED_VALUE } from "./constants";
 import {
   createPackageDraftMutation,
   createPackageMutation,
@@ -48,7 +49,13 @@ export async function getPackageDraftId(aPackage: Package) {
 }
 
 function isGrandfathered(aPackage: Package): boolean {
-  return aPackage.additionalMetaData?.grandfathered === "true";
+  const meta = aPackage.additionalMetaData;
+  if (!meta) return false;
+  return Object.entries(meta).some(
+    ([key, value]) =>
+      key.toLowerCase() === GRANDFATHERED_KEY.toLowerCase() &&
+      value.toLowerCase() === GRANDFATHERED_VALUE.toLowerCase()
+  );
 }
 
 type ResolvedRefId = {
@@ -79,7 +86,7 @@ export async function resolveTargetRefId(
   lastGrandfathered = existingBase;
 
   for (let version = 1; version <= 100; version++) {
-    const versionedRefId = `${baseRefId}-v${version}`;
+    const versionedRefId = `${baseRefId}-copy-${version}`;
     const versionedPackage = await queryPackage(
       type,
       versionedRefId,
@@ -112,7 +119,13 @@ export async function copyEntitlements(
   const sourceWithEntitlements = await queryPackageByRefId(
     type,
     sourceRefId,
-    true
+    true,
+    environmentId
+  );
+
+  console.log(
+    `Source ${type} entitlements:`,
+    JSON.stringify(sourceWithEntitlements?.packageEntitlements, null, 2)
   );
 
   if (!sourceWithEntitlements?.packageEntitlements?.length) {
@@ -125,7 +138,8 @@ export async function copyEntitlements(
   await createPackageEntitlementsMutation(
     type,
     targetPackageId,
-    sourceWithEntitlements.packageEntitlements
+    sourceWithEntitlements.packageEntitlements,
+    environmentId
   );
 }
 
@@ -337,12 +351,15 @@ export function isAddon(name: string): boolean {
 
 export async function publishPackage(aPackage: Package) {
   if (aPackage.draftId) {
-    publishPackageMutation(aPackage.type, aPackage.draftId, aPackage.refId);
+    await publishPackageMutation(aPackage.type, aPackage.draftId, aPackage.refId);
+    return;
   }
 
   if (aPackage.status === "DRAFT") {
-    publishPackageMutation(aPackage.type, aPackage.id, aPackage.refId);
+    await publishPackageMutation(aPackage.type, aPackage.id, aPackage.refId);
+    return;
   }
+
   if (aPackage.draftSummary && aPackage.draftSummary.version > 0) {
     const draftPackage = await queryPackage(
       "Plan",
@@ -355,8 +372,10 @@ export async function publishPackage(aPackage: Package) {
       console.log(`No draft found for package with refId: ${aPackage.refId}`);
       return;
     }
-    publishPackageMutation(aPackage.type, draftPackage.id, aPackage.refId!);
+    await publishPackageMutation(aPackage.type, draftPackage.id, aPackage.refId!);
+    return;
   }
+
   console.log(
     `${aPackage.type} with Ref Id: ${aPackage.refId} is already published.`
   );
