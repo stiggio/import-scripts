@@ -27,10 +27,6 @@ export function splitToAddonAndPlans(zuoraProducts: ZuoraProduct[]) {
 
   for (const product of zuoraProducts) {
     const addons = (product.plans || []).filter((plan) => isAddon(plan.name));
-    console.log(
-      "🚀 ~ splitToAddonAndPlans ~ addons:",
-      JSON.stringify(addons, null, 2),
-    );
     if (addons.length > 0) {
       const addonProduct: ZuoraProduct = {
         ...product,

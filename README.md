@@ -9,6 +9,7 @@ Imports product catalog data from **Zuora** into **Stigg** by converting Zuora p
 - Imports Zuora products, plans, add-ons, and flat-rate prices into Stigg
 - Automatically detects add-ons (`add-on` / `addon` in name)
 - Supports **create**, **update**, and **publish** workflows
+- **Grandfathered plan forking** — mark plans/add-ons as grandfathered, and the next import creates a new copy with entitlements preserved
 - Dry-run mode to preview changes without modifying Stigg
 
 ---
@@ -18,7 +19,7 @@ Imports product catalog data from **Zuora** into **Stigg** by converting Zuora p
 - The **first Zuora product** becomes the main product in Stigg
 - All plans and add-ons from additional products are assigned to it
 - Rate plans are split into **plans** and **add-ons**
-- Only **flat-rate pricing** is supported
+- **Flat-rate** and **per-unit** (imported as flat-fee) pricing is supported
 - Packages are grouped by Billing Period and created as **draft** by default
 
 ---
@@ -134,3 +135,39 @@ yarn run zuora-import --update --publish --dry-run
 
 - **No changes are applied to Stigg**
 - All actions are **previewed in the console only**
+
+---
+
+## Grandfathered Plan Forking
+
+Allows you to "freeze" a plan or add-on in Stigg so it is preserved as-is, while the next import creates a new copy with the latest Zuora data and entitlements carried over.
+
+### Step 1: Fork (mark as grandfathered)
+
+```bash
+yarn run zuora-import:fork <plan-or-addon-refId>
+```
+
+- Looks up the plan/add-on by `refId` in Stigg
+- Sets `GRANDFATHERED: true` in its metadata
+- Handles draft/publish lifecycle automatically
+
+### Step 2: Re-run import
+
+```bash
+yarn run zuora-import --publish
+```
+
+On the next import, the script detects the grandfathered entity and:
+
+1. Creates a **new** plan/add-on with a `-copy-1` suffix (e.g. `Pro_Plan-copy-1`)
+2. Copies all **entitlements** from the grandfathered version to the new one
+3. Leaves the grandfathered entity untouched
+
+### Chaining
+
+You can fork the copy and re-import again — suffixes increment automatically:
+
+- `Pro_Plan` (grandfathered) → `Pro_Plan-copy-1`
+- `Pro_Plan-copy-1` (grandfathered) → `Pro_Plan-copy-2`
+- `Pro_Plan-copy-2` (not grandfathered) → updated in place
