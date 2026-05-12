@@ -1,4 +1,3 @@
-import { error } from "console";
 import {
   BillingProductsResponse,
   productFields,
@@ -6,6 +5,7 @@ import {
   SearchProductsResponse,
   Package,
   packageFields,
+  packageEntitlementFields,
   PackageType,
   SearchAddonsResponse,
   SearchPlansResponse,
@@ -59,8 +59,9 @@ export async function queryPackage<T extends PackageType>(
       )}`
     );
   }
-  const aPackage =
-    response.data?.[type === "Plan" ? "plans" : "addons"].edges[0]?.node;
+  const key = type === "Plan" ? "plans" : "addons";
+  const data = response.data as Record<string, { edges: { node: Package }[] }> | undefined;
+  const aPackage = data?.[key]?.edges[0]?.node;
   if (!aPackage) {
     return null;
   }
@@ -141,6 +142,56 @@ export async function queryBillingProducts(
     );
   }
   return response;
+}
+
+type GetPackageByRefIdResponse = {
+  data?: {
+    getPlanByRefId?: Package;
+    getAddonByRefId?: Package;
+  };
+  errors?: unknown;
+};
+
+export async function queryPackageByRefId<T extends PackageType>(
+  type: T,
+  refId: string,
+  includeEntitlements = false,
+  envId?: string
+): Promise<Package | null> {
+  const queryName = type === "Plan" ? "getPlanByRefId" : "getAddonByRefId";
+  const entitlements = includeEntitlements ? packageEntitlementFields : "";
+
+  const query = `query GetPackageByRefId($input: GetPackageByRefIdInput!) {
+    ${queryName}(input: $input) {
+      ${packageFields}
+      ${entitlements}
+    }
+  }`;
+
+  const variables = {
+    input: {
+      refId,
+      ...(envId ? { environmentId: envId } : {}),
+    },
+  };
+
+  const body = JSON.stringify({ query, variables });
+  const response = await sendGraphQLRequest<GetPackageByRefIdResponse>(body);
+
+  if (response.errors) {
+    if (isDryRun) {
+      return null;
+    }
+    throw new Error(
+      `Error fetching ${type} by refId: ${refId}. Errors: ${JSON.stringify(response.errors)}`
+    );
+  }
+
+  const aPackage = response.data?.[queryName] || null;
+  if (aPackage) {
+    aPackage.type = type;
+  }
+  return aPackage;
 }
 
 export async function queryZuoraIntegration(environmentId: string) {
