@@ -2,12 +2,13 @@ import { isDryRun, environmentId, updateMode } from "./arguments";
 import {
   createPackageDraftMutation,
   createPackageMutation,
+  createPackageEntitlementsMutation,
   publishPackageMutation,
   unarchiveAddonMutation,
   unarchivePlanMutation,
   updatePackageMutation,
 } from "./graphql/mutations";
-import { queryPackage } from "./graphql/queries";
+import { queryPackage, queryPackageByRefId } from "./graphql/queries";
 import { getDiscountPercentage } from "./price";
 import { ZuoraPlan } from "./types/integration";
 import {
@@ -26,11 +27,11 @@ export async function getPackageDraftId(aPackage: Package) {
       aPackage.type,
       aPackage.id
     );
-    return draftResponse.id;
+    return draftResponse!.id;
   }
   const version = aPackage.draftSummary.version;
 
-  const draftPackage: Package = await queryPackage(
+  const draftPackage = await queryPackage(
     aPackage.type,
     aPackage.refId!,
     aPackage.productId,
@@ -38,14 +39,94 @@ export async function getPackageDraftId(aPackage: Package) {
     false
   );
 
-  const packageId = draftPackage.id;
-
-  if (!packageId) {
+  if (!draftPackage?.id) {
     throw new Error(
       `No addon draft found for package with refId: ${aPackage.refId}`
     );
   }
-  return packageId;
+  return draftPackage.id;
+}
+
+function isGrandfathered(aPackage: Package): boolean {
+  return aPackage.additionalMetaData?.grandfathered === "true";
+}
+
+type ResolvedRefId = {
+  refId: string;
+  grandfatheredSource?: Package;
+};
+
+export async function resolveTargetRefId(
+  type: PackageType,
+  baseRefId: string,
+  productId: string
+): Promise<ResolvedRefId> {
+  let currentRefId = baseRefId;
+  let lastGrandfathered: Package | undefined;
+
+  const existingBase = await queryPackage(
+    type,
+    currentRefId,
+    productId,
+    undefined,
+    true
+  );
+
+  if (!existingBase || !isGrandfathered(existingBase)) {
+    return { refId: currentRefId };
+  }
+
+  lastGrandfathered = existingBase;
+
+  for (let version = 1; version <= 100; version++) {
+    const versionedRefId = `${baseRefId}-v${version}`;
+    const versionedPackage = await queryPackage(
+      type,
+      versionedRefId,
+      productId,
+      undefined,
+      true
+    );
+
+    if (!versionedPackage) {
+      return { refId: versionedRefId, grandfatheredSource: lastGrandfathered };
+    }
+
+    if (!isGrandfathered(versionedPackage)) {
+      return { refId: versionedRefId };
+    }
+
+    lastGrandfathered = versionedPackage;
+  }
+
+  throw new Error(
+    `Too many grandfathered versions for ${type} with base refId: ${baseRefId}`
+  );
+}
+
+export async function copyEntitlements(
+  type: PackageType,
+  sourceRefId: string,
+  targetPackageId: string
+): Promise<void> {
+  const sourceWithEntitlements = await queryPackageByRefId(
+    type,
+    sourceRefId,
+    true
+  );
+
+  if (!sourceWithEntitlements?.packageEntitlements?.length) {
+    console.log(
+      `No entitlements found on source ${type} with refId: ${sourceRefId}, skipping copy.`
+    );
+    return;
+  }
+
+  await createPackageEntitlementsMutation(
+    type,
+    targetPackageId,
+    sourceWithEntitlements.packageEntitlements
+  );
 }
 
 export async function fetchOrCreatePackage(
@@ -61,9 +142,24 @@ export async function fetchOrCreatePackage(
     zuoraProductId
   );
 
-  const existingPackage: Package = await queryPackage(
+  const baseRefId = packageInput.input.refId!;
+  const { refId: targetRefId, grandfatheredSource } = await resolveTargetRefId(
     type,
-    packageInput.input.refId,
+    baseRefId,
+    productId
+  );
+
+  if (grandfatheredSource) {
+    console.log(
+      `${isDryRun ? "[Dry Run]: " : ""}${type} with refId ${grandfatheredSource.refId} is grandfathered, creating new version: ${targetRefId}`
+    );
+  }
+
+  packageInput.input.refId = targetRefId;
+
+  const existingPackage = await queryPackage(
+    type,
+    packageInput.input.refId!,
     productId,
     undefined,
     true
@@ -112,6 +208,11 @@ export async function fetchOrCreatePackage(
       isDryRun ? "[Dry Run]: " : ""
     }Created new ${type} in Stigg with Ref Id: ${createdPackage.refId}`
   );
+
+  if (grandfatheredSource) {
+    await copyEntitlements(type, grandfatheredSource.refId, createdPackage.id);
+  }
+
   return createdPackage;
 }
 
@@ -242,7 +343,7 @@ export async function publishPackage(aPackage: Package) {
   if (aPackage.status === "DRAFT") {
     publishPackageMutation(aPackage.type, aPackage.id, aPackage.refId);
   }
-  if (aPackage.draftSummary?.version > 0) {
+  if (aPackage.draftSummary && aPackage.draftSummary.version > 0) {
     const draftPackage = await queryPackage(
       "Plan",
       aPackage.refId!,

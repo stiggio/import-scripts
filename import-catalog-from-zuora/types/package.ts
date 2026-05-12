@@ -7,6 +7,7 @@ export const packageFields = `
         refId
         status
         productId
+        additionalMetaData
         draftSummary {
           version
         }
@@ -22,6 +23,27 @@ export const packageFields = `
           }
         }`;
 
+export const packageEntitlementFields = `
+        packageEntitlements {
+          ... on PackageFeatureEntitlement {
+            feature {
+              refId
+              featureType
+            }
+            hasUnlimitedUsage
+            usageLimit
+            resetPeriod
+          }
+          ... on PackageCreditEntitlement {
+            feature {
+              refId
+            }
+            amount
+            cadence
+            customCurrencyId
+          }
+        }`;
+
 export type PackagePrice = {
   billingCadence: string;
   billingId: string;
@@ -34,6 +56,29 @@ export type PackagePrice = {
   };
 };
 
+export type PackageFeatureEntitlement = {
+  feature: {
+    refId: string;
+    featureType: string;
+  };
+  hasUnlimitedUsage: boolean;
+  usageLimit: number | null;
+  resetPeriod: string | null;
+};
+
+export type PackageCreditEntitlement = {
+  feature: {
+    refId: string;
+  };
+  amount: number;
+  cadence: string | null;
+  customCurrencyId: string | null;
+};
+
+export type PackageEntitlement =
+  | PackageFeatureEntitlement
+  | PackageCreditEntitlement;
+
 export type Package = {
   id: string;
   refId: string;
@@ -42,11 +87,13 @@ export type Package = {
   status?: string;
   type: "Plan" | "Addon";
   productId: string;
+  additionalMetaData?: Record<string, string>;
   draftSummary?: {
     version: number;
   };
   prices: PackagePrice[];
   draftId?: string;
+  packageEntitlements?: PackageEntitlement[];
 };
 
 export type SearchPackageResponse<T extends string> = QueryResponse<T, Package>;
@@ -97,9 +144,7 @@ export type CreateDraftResponse = {
 export type PackageType = "Plan" | "Addon";
 
 export type PackageInput = {
-  additionalMetaData?: {
-    ZUORA__SYNC_SKIP_UPDATE?: string;
-  };
+  additionalMetaData?: Record<string, string>;
   billingId?: string;
   description: string;
   displayName: string;

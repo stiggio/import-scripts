@@ -33,7 +33,7 @@ async function main() {
 
     const zuoraPlanNames = zuoraPlanMap.keys();
     for (const planName of zuoraPlanNames) {
-      const zuoraPlans = zuoraPlanMap.get(planName);
+      const zuoraPlans = zuoraPlanMap.get(planName)!;
 
       const primaryZuoraPlan = zuoraPlans[0];
 
@@ -55,7 +55,7 @@ async function main() {
     const zuoraAddonNames = zuoraAddonMap.keys();
 
     for (const addonName of zuoraAddonNames) {
-      const zuoraAddons = zuoraAddonMap.get(addonName);
+      const zuoraAddons = zuoraAddonMap.get(addonName)!;
 
       const primaryZuoraAddon = zuoraAddons[0];
 
