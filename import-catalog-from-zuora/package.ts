@@ -1,5 +1,5 @@
 import { isDryRun, environmentId, updateMode } from "./arguments";
-import { GRANDFATHERED_KEY, GRANDFATHERED_VALUE } from "./constants";
+import { GRANDFATHERED_KEY, GRANDFATHERED_VALUE, ZUORA_SYNC_SKIP_UPDATE_KEY, ZUORA_DISCOUNT_PERCENTAGE_KEY } from "./constants";
 import {
   createPackageDraftMutation,
   createPackageMutation,
@@ -266,10 +266,10 @@ function getCreatePackageInput(
       : true;
 
   const additionalMetaData: Record<string, string> = {
-    ZUORA__SYNC_SKIP_UPDATE: "true",
+    [ZUORA_SYNC_SKIP_UPDATE_KEY]: "true",
   };
   if (discountPercentage && discountPercentage > 0) {
-    additionalMetaData.ZUORA__DISCOUNT_PERCENTAGE = `${discountPercentage}`;
+    additionalMetaData[ZUORA_DISCOUNT_PERCENTAGE_KEY] = `${discountPercentage}`;
   }
 
   return {
