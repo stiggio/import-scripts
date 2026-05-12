@@ -4,6 +4,7 @@ export const packageFields = `
         displayName
         description
         id
+        billingId
         refId
         status
         productId

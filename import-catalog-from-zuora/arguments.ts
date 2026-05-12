@@ -34,6 +34,11 @@ const argv = yargs(process.argv.slice(2))
     describe: "Update Mode",
     demandOption: false,
   })
+  .option("custom-plans", {
+    type: "boolean",
+    describe: "Custom Plans",
+    demandOption: false,
+  })
   .parseSync();
 
 const BASE_URL: string = process.env.BASE_URL || "https://api.stigg.io/graphql";
@@ -55,17 +60,22 @@ const deleteExisting =
     ? argv.deleteExisting
     : process.env.DELETE_EXISTING === "true";
 
+const customPlans =
+  argv.customPlans !== undefined
+    ? argv.customPlans
+    : process.env.CUSTOM_PLANS === "true";
+
 if (!X_API_KEY) {
   throw new Error("X_API_KEY is not defined, please set it in .env file");
 }
 if (!environmentId) {
   throw new Error(
-    "ENVIRONMENT_ID is not defined, please set it in .env file or pass as argument --environmentId"
+    "ENVIRONMENT_ID is not defined, please set it in .env file or pass as argument --environmentId",
   );
 }
 if (!zuoraProductIds) {
   throw new Error(
-    "ZUORA_PRODUCT_IDS is not defined, please set it in .env file or pass as argument --zuoraProductIds"
+    "ZUORA_PRODUCT_IDS is not defined, please set it in .env file or pass as argument --zuoraProductIds",
   );
 }
 
@@ -78,4 +88,5 @@ export {
   publishMode,
   updateMode,
   deleteExisting,
+  customPlans,
 };

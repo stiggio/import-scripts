@@ -2,7 +2,13 @@ import { getIntegrationId } from "./integration.js";
 import { createPrices } from "./price.js";
 import { fetchOrCreateProduct } from "./product.js";
 import { fetchAllProductsFromZuora, splitToAddonAndPlans } from "./zuora.js";
-import { isDryRun, publishMode, updateMode } from "./arguments.js";
+import {
+  customPlans,
+  deleteExisting,
+  isDryRun,
+  publishMode,
+  updateMode,
+} from "./arguments.js";
 import {
   fetchOrCreatePackage,
   groupZuoraPlansByName,
@@ -34,14 +40,15 @@ async function main() {
     const zuoraPlanNames = zuoraPlanMap.keys();
     for (const planName of zuoraPlanNames) {
       const zuoraPlans = zuoraPlanMap.get(planName);
-
+      const zuoraPlanIds = zuoraPlans.map((plan) => plan.id);
       const primaryZuoraPlan = zuoraPlans[0];
 
       const plan = await fetchOrCreatePackage(
         "Plan",
         primaryZuoraPlan,
         mainProductId,
-        zuoraProduct.id
+        zuoraProduct.id,
+        zuoraPlanIds,
       );
       await createPrices(zuoraPlans, plan);
       stiggPlans.push(plan);
@@ -56,14 +63,15 @@ async function main() {
 
     for (const addonName of zuoraAddonNames) {
       const zuoraAddons = zuoraAddonMap.get(addonName);
-
+      const zuoraPlanIds = zuoraAddons.map((addon) => addon.id);
       const primaryZuoraAddon = zuoraAddons[0];
 
       const addon = await fetchOrCreatePackage(
         "Addon",
         primaryZuoraAddon,
         mainProductId,
-        zuoraProduct.id
+        zuoraProduct.id,
+        zuoraPlanIds,
       );
       await createPrices(zuoraAddons, addon);
       stiggAddons.push(addon);
@@ -84,6 +92,8 @@ async function main() {
   try {
     console.log("publishMode:", publishMode ? "ENABLED" : "DISABLED");
     console.log("updateMode:", updateMode ? "ENABLED" : "DISABLED");
+    console.log("customPlansMode:", customPlans ? "ENABLED" : "DISABLED");
+    console.log("deleteExisting:", deleteExisting ? "ENABLED" : "DISABLED");
     console.log("");
 
     await main();
