@@ -8,6 +8,7 @@ export const packageFields = `
         status
         productId
         additionalMetaData
+        maxQuantity
         draftSummary {
           version
         }
@@ -102,6 +103,7 @@ export type Package = {
   type: "Plan" | "Addon";
   productId: string;
   additionalMetaData?: Record<string, string>;
+  maxQuantity?: number | null;
   draftSummary?: {
     version: number;
   };
@@ -167,6 +169,7 @@ export type PackageInput = {
   productId?: string;
   refId?: string;
   status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  maxQuantity?: number | null;
 };
 
 export type CreatePackageInput = {
