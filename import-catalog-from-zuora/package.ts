@@ -238,8 +238,14 @@ export function isSingleQuantityAddon(zuoraPlan: ZuoraPlan): boolean {
 
 export function isMaxQuantityInvariantError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
-  return err.message.includes(
-    "Cannot change addon type after subscriptions to the addon have been created"
+  // Match the stable GraphQL error code (serialized into the thrown message).
+  // The legacy InvariantViolationError message is kept so the import keeps
+  // working against a backend that hasn't deployed the code-based error yet.
+  return (
+    err.message.includes("AddonQuantityExceedsLimitError") ||
+    err.message.includes(
+      "Cannot change addon type after subscriptions to the addon have been created"
+    )
   );
 }
 
