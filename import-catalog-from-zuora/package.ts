@@ -230,6 +230,11 @@ export async function fetchOrCreatePackage(
   return createdPackage;
 }
 
+// `some` (not `every`) is intentional. A Stigg add-on collapses to a single
+// synced Zuora charge with a single quantity, so a mixed flat_fee + per_unit
+// rate plan can't be represented as multi-instance: quantity > 1 either trips
+// the flat-fee sync guard or silently drops the flat component. Any flat_fee
+// charge therefore means the add-on must be single-instance.
 export function isSingleQuantityAddon(zuoraPlan: ZuoraPlan): boolean {
   return zuoraPlan.prices.some(
     (price) => `${price.chargeModel}`.toLowerCase() === "flat_fee"
