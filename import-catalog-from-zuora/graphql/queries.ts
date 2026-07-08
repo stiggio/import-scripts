@@ -4,7 +4,7 @@ import {
   SearchIntegrationsResponse,
   SearchProductsResponse,
   Package,
-  packageFields,
+  packageFieldsFor,
   packageEntitlementFields,
   PackageType,
   SearchAddonsResponse,
@@ -30,7 +30,7 @@ export async function queryPackage<T extends PackageType>(
     ${type.toLowerCase()}s(filter: $filter) {
       edges {
         node {
-          ${packageFields}
+          ${packageFieldsFor(type)}
         }
       }
     }
@@ -163,7 +163,7 @@ export async function queryPackageByRefId<T extends PackageType>(
 
   const query = `query GetPackageByRefId($input: GetPackageByRefIdInput!) {
     ${queryName}(input: $input) {
-      ${packageFields}
+      ${packageFieldsFor(type)}
       ${entitlements}
     }
   }`;

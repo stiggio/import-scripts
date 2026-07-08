@@ -8,7 +8,6 @@ export const packageFields = `
         status
         productId
         additionalMetaData
-        maxQuantity
         draftSummary {
           version
         }
@@ -23,6 +22,12 @@ export const packageFields = `
             amount
           }
         }`;
+
+// maxQuantity is exposed only on the Addon GraphQL type, not on Plan.
+export const addonOnlyFields = `
+        maxQuantity`;
+export const packageFieldsFor = (type: "Plan" | "Addon") =>
+  type === "Addon" ? `${packageFields}${addonOnlyFields}` : packageFields;
 
 export const packageEntitlementFields = `
         packageEntitlements {

@@ -5,7 +5,7 @@ import {
   CreatePackageResponse,
   DraftResponse,
   Package,
-  packageFields,
+  packageFieldsFor,
   PackageType,
   PublishResponse,
   UpdateAddonResponse,
@@ -104,7 +104,7 @@ export async function createPackageMutation<T extends PackageType>(
 
   const query = `mutation CreateOne${type}($input: ${type}CreateInput!) {
     createOne${type}(input: $input) {
-      ${packageFields}
+      ${packageFieldsFor(type)}
     }
   }`;
 
@@ -146,7 +146,7 @@ export async function updatePackageMutation<T extends PackageType>(
   }
   const query = `mutation UpdateOne${type}($input: ${type}UpdateInput!) {
     updateOne${type}(input: $input) {
-      ${packageFields}
+      ${packageFieldsFor(type)}
     }
   }`;
 
@@ -186,7 +186,7 @@ export async function unarchivePlanMutation(
   }
   const query = `mutation UnarchivePlan($input: UnArchivePlanInput!) {
   unarchivePlan(input: $input) {
-    ${packageFields}
+    ${packageFieldsFor("Plan")}
   }
 }`;
 
@@ -214,7 +214,7 @@ export async function unarchiveAddonMutation(
   }
   const query = `mutation UnarchiveAddon($input: AddonUnArchiveInput!) {
   unarchiveAddon(input: $input) {
-    ${packageFields}
+    ${packageFieldsFor("Addon")}
   }
 }`;
 
