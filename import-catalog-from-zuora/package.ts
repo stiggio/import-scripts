@@ -230,12 +230,39 @@ export async function fetchOrCreatePackage(
   return createdPackage;
 }
 
+// `some` (not `every`) is intentional. A Stigg add-on collapses to a single
+// synced Zuora charge with a single quantity, so a mixed flat_fee + per_unit
+// rate plan can't be represented as multi-instance: quantity > 1 either trips
+// the flat-fee sync guard or silently drops the flat component. Any flat_fee
+// charge therefore means the add-on must be single-instance.
+export function isSingleQuantityAddon(zuoraPlan: ZuoraPlan): boolean {
+  return zuoraPlan.prices.some(
+    (price) => `${price.chargeModel}`.toLowerCase() === "flat_fee"
+  );
+}
+
+export function isMaxQuantityInvariantError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  // Match the stable GraphQL error code (serialized into the thrown message).
+  // The legacy InvariantViolationError message is kept so the import keeps
+  // working against a backend that hasn't deployed the code-based error yet.
+  return (
+    err.message.includes("AddonQuantityExceedsLimitError") ||
+    err.message.includes(
+      "Cannot change addon type after subscriptions to the addon have been created"
+    )
+  );
+}
+
 function getCreatePackageInput(
   type: PackageType,
   zuoraPlan: ZuoraPlan,
   productId: string,
   zuoraProductId: string
 ): CreatePackageInput {
+  const addonMaxQuantity =
+    type === "Addon" && isSingleQuantityAddon(zuoraPlan) ? 1 : undefined;
+
   if (isDryRun) {
     return {
       input: {
@@ -248,6 +275,7 @@ function getCreatePackageInput(
         environmentId,
         pricingType: "PAID",
         status: "DRAFT",
+        ...(addonMaxQuantity !== undefined && { maxQuantity: addonMaxQuantity }),
       },
     };
   }
@@ -283,6 +311,7 @@ function getCreatePackageInput(
       environmentId,
       pricingType: isPaid ? "PAID" : "FREE",
       status: "DRAFT",
+      ...(addonMaxQuantity !== undefined && { maxQuantity: addonMaxQuantity }),
     },
   };
 }
@@ -319,16 +348,23 @@ export async function updatePackageIfNeeded<T extends PackageType>(
     return undefined;
   }
 
+  const desiredMaxQuantity =
+    type === "Addon" ? planInput.input.maxQuantity ?? null : undefined;
+  const existingMaxQuantity = aPackage.maxQuantity ?? null;
+  const maxQuantityChanged =
+    desiredMaxQuantity !== undefined && desiredMaxQuantity !== existingMaxQuantity;
+
   const needsUpdate =
     aPackage.displayName !== planInput.input.displayName ||
-    aPackage.description !== planInput.input.description;
+    aPackage.description !== planInput.input.description ||
+    maxQuantityChanged;
 
   if (!needsUpdate) {
     console.log(`No updates needed for plan with Ref Id: ${aPackage.refId}`);
     return undefined;
   }
 
-  const updatePlanInput: UpdatePackageInput = {
+  const baseUpdateInput: UpdatePackageInput = {
     input: {
       id: aPackage.id,
       billingId: planInput.input.billingId,
@@ -338,9 +374,25 @@ export async function updatePackageIfNeeded<T extends PackageType>(
     },
   };
 
+  const updateInputWithMaxQuantity: UpdatePackageInput = maxQuantityChanged
+    ? {
+        input: { ...baseUpdateInput.input, maxQuantity: desiredMaxQuantity },
+      }
+    : baseUpdateInput;
+
   console.log(`Updating ${type} with Ref Id: ${aPackage.refId} in Stigg...`);
 
-  return updatePackageMutation<T>(type, updatePlanInput);
+  try {
+    return await updatePackageMutation<T>(type, updateInputWithMaxQuantity);
+  } catch (err) {
+    if (!maxQuantityChanged || !isMaxQuantityInvariantError(err)) {
+      throw err;
+    }
+    console.warn(
+      `[${aPackage.refId}] Cannot change maxQuantity: addon has active subscriptions. Retrying update without maxQuantity.`
+    );
+    return updatePackageMutation<T>(type, baseUpdateInput);
+  }
 }
 
 export function isAddon(name: string): boolean {
