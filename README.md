@@ -88,18 +88,6 @@ yarn run zuora-import --update
 
 ---
 
-### Delete Existing mode (NOT RECOMMENDED FOR PRODUCTION)
-
-```bash
-yarn run zuora-import --delete-existing
-```
-
-- Deletes existing product before import by ref Id
-- Creates **new entities** if they don’t exist
-- Does **not** publish
-
----
-
 ### Publish mode
 
 ```bash
