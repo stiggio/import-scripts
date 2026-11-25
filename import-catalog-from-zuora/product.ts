@@ -5,10 +5,9 @@ import type {
   Product,
 } from "./types/product.js";
 
-import { environmentId, isDryRun, deleteExisting } from "./arguments.js";
+import { environmentId, isDryRun } from "./arguments.js";
 import {
   createProductMutation,
-  deleteProductMutation,
   unarchiveProductMutation,
   updateProductMutation,
 } from "./graphql/mutations";
@@ -53,12 +52,7 @@ export async function fetchOrCreateProduct(zuoraProduct: ZuoraProduct) {
     createProductInput.input.product.refId
   );
 
-  let product = searchProductResponse.data?.products.edges[0]?.node;
-
-  if (deleteExisting && product) {
-    await deleteProductMutation(product.id);
-    product = null;
-  }
+  const product = searchProductResponse.data?.products.edges[0]?.node;
 
   if (product) {
     if (product.status === "ARCHIVED") {
